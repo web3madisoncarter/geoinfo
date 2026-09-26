@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Logs Viewer Application">
+    <title>Logs Viewer_v1.0.8</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s;  /* Smooth transition for hover */
+        }
+
+        th {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #ddd;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .container {
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;  /* Smooth transition for hover */
+        }
+
+        .btn:hover {
+            background-color: darkred;
+        }
+
+        .checkbox {
+            margin: 0;
+        }
+
+        .toggle-btn {
+            padding: 10px 15px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;  /* Smooth transition for hover */
+        }
+
+        .toggle-btn.off {
+            background-color: #f44336;
+        }
+
+        .toggle-btn:hover {
+            background-color: #45a049;
+        }
+
+        .toggle-btn.off:hover {
+            background-color: #e53935;
+        }
+
+        .hidden-row {
+            display: none;
+        }
+
+        .error-message {
+            display: none;
+            color: red;
+            text-align: center;
+            margin: 10px;
+        }
+        .filter-input-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .filter-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100px;
+            margin-right: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            th, td {
+                padding: 8px;
+            }
+
+            .btn, .toggle-btn {
+                font-size: 14px;
+            }
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Logs Viewer_v1.0.8</h2>
+        <div id="errorMessage" class="error-message"></div>
+        <button id="toggleFilter" class="toggle-btn off" onclick="toggleFilter()">Show All</button>
+        <form method="POST" action="/mine/delete">
+            <div class="table-container">
+                <table id="logsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Country</th>
+                            <th>Region</th>
+                            <th>City</th>
+                            <th>Method</th>
+                            <th>Source</th>
+                            <th>IP</th>
+                            <th>Request URL</th>
+                            <th>Flag</th>
+                            <th>PC name / Username</th>
+                        </tr>
+                        <tr>
+                            <th>
+                                <div class="filter-input-container">*</div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-timestamp" placeholder="Timestamp">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-country" placeholder="Country">
+                                </div>
+                            </th>
+                            <th> 
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-region" placeholder="Region">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-city" placeholder="City">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-method" placeholder="Method">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-source" placeholder="Source">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-ip" placeholder="IP">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-url" placeholder="URL">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-flag" placeholder="Flag">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="filter-input-container">
+                                    <input class="filter-input" type="text" id="filter-computername" placeholder="PC name / Username">
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody"></tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        
+        function toggleFilter() {
+            const toggleBtn = document.getElementById("toggleFilter");
+            const rows = document.querySelectorAll("tr[data-url='/mine/list']");
+
+            if (toggleBtn.classList.contains("off")) {
+                rows.forEach((row) => row.classList.remove("hidden-row"));
+                toggleBtn.classList.remove("off");
+                toggleBtn.textContent = "Hide '/mine/list' Entries";
+            } else {
+                rows.forEach((row) => row.classList.add("hidden-row"));
+                toggleBtn.classList.add("off");
+                toggleBtn.textContent = "Show All";
+            }
+        }
+        
+        document.addEventListener("DOMContentLoaded", () => {
+            // Initialize Firebase
+            try {
+                const firebaseConfig = {
+                  apiKey: "AIzaSyBt3xmDNOxSKuWyeikaLqxUnZBXBwudXVQ",
+                  authDomain: "locate-my-ip-4ce83.firebaseapp.com",
+                  projectId: "locate-my-ip-4ce83",
+                  storageBucket: "locate-my-ip-4ce83.firebasestorage.app",
+                  messagingSenderId: "21940563761",
+                  appId: "1:21940563761:web:e9c90c537c8b42ccca0a10"
+                };
+
+                // Initialize Firebase
+                const app = initializeApp(firebaseConfig);
+                const db = firebase.firestore();
+                console.log("Firebase initialized successfully");
+
+                const errorDiv = document.getElementById("errorMessage");
+
+                function showError(message) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = "block";
+                }
+
+                function hideError() {
+                    errorDiv.style.display = "none";
+                }
+
+                function createTableRow(doc, index) {
+                    const data = doc.data();
+                    const isFilteredOut = data.url === "/mine/list";
+                    const rowClass = isFilteredOut ? "hidden-row" : "";
+
+                    return `
+                        <tr class="${rowClass}" data-url="${data.url}" data-id="${doc.id}">
+                            <td>${index}</td>
+                            <td>${data.timestamp || "N/A"}</td>
+                            <td>${data.country || "N/A"}</td>
+                            <td>${data.regionName || "N/A"}</td>
+                            <td>${data.city || "N/A"}</td>
+                            <td>${data.method || "N/A"}</td>
+                            <td>${data.source || "N/A"}</td>
+                            <td>${data.ip || "N/A"}</td>
+                            <td>${data.url || "N/A"}</td>
+                            <td>${data.flag || "N/A"}</td>
+                            <td>${data.computername || "N/A"}</td>
+                        </tr>
+                    `;
+                }
+
+                let rowCount = 0;
+                const unsubscribe = db.collection("requests")
+                    .orderBy("timestamp", "asc")
+                    .onSnapshot((snapshot) => {
+                        const tableBody = document.getElementById("logsTableBody");
+
+                        snapshot.docChanges().forEach((change) => {
+                            try {
+                                if (change.type === "added") {
+                                    rowCount++;
+                                    const newRow = createTableRow(change.doc, rowCount);
+                                    tableBody.insertAdjacentHTML("afterbegin", newRow);
+
+                                    // Fade in the newly added row
+                                    setTimeout(() => {
+                                        const row = document.querySelector(`tr[data-id="${change.doc.id}"]`);
+                                        if (row) row.style.transition = "background-color 1s ease-in-out"; // Add any transitions you prefer
+                                    }, 2000);
+                                } else if (change.type === "modified") {
+                                    const row = document.querySelector(`tr[data-id="${change.doc.id}"]`);
+                                    if (row) {
+                                        const index = row.querySelector("td").textContent;
+                                        const updatedRow = createTableRow(change.doc, index);
+                                        row.outerHTML = updatedRow;
+                                    }
+                                } else if (change.type === "removed") {
+                                    const row = document.querySelector(`tr[data-id="${change.doc.id}"]`);
+                                    if (row) row.remove();
+                                }
+                            } catch (err) {
+                                console.error("Error handling document change:", err);
+                                showError("Error updating table");
+                            }
+                        });
+                    }, (error) => {
+                        console.error("Firestore listener error:", error);
+                        showError("Error connecting to database: " + error.message);
+                    });
+
+                window.addEventListener("unload", () => {
+                    if (unsubscribe) unsubscribe();
+                });
+
+                const filterInputs = document.querySelectorAll(".filter-input");
+                
+                // Debounce Function
+                let timeout;
+                filterInputs.forEach(input => {
+                    input.addEventListener("input", () => {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => {
+                            updateTableBody();
+                        }, 300);
+                    });
+                });
+
+
+                function updateTableBody() {
+                    hideError(); // Hide the error when updating
+                    const timestampFilter = filterInputs[0].value.toLowerCase();
+                    const countryFilter = filterInputs[1].value.toLowerCase();
+                    const regionFilter = filterInputs[2].value.toLowerCase();
+                    const cityFilter = filterInputs[3].value.toLowerCase();
+                    const methodFilter = filterInputs[4].value.toLowerCase();
+                    const sourceFilter = filterInputs[5].value.toLowerCase();
+                    const ipFilter = filterInputs[6].value.toLowerCase();
+                    const urlFilter = filterInputs[7].value.toLowerCase();
+                    const flagFilter = filterInputs[8].value.toLowerCase();
+                    const computernameFilter = filterInputs[9].value.toLowerCase();
+
+                    db.collection("requests")
+                        .get()
+                        .then((snapshot) => {
+                            const tableBody = document.getElementById("logsTableBody");
+                            tableBody.innerHTML = ""; // clear table body
+                            let count = 0; // to keep the index of the displayed rows
+
+                            snapshot.forEach((doc) => {
+                                const data = doc.data();
+                                // Apply filters
+                                const isFilteredOut = 
+                                    (timestampFilter && !data.timestamp.toLowerCase().includes(timestampFilter)) ||
+                                    (countryFilter && !data.country.toLowerCase().includes(countryFilter)) ||
+                                    (regionFilter && !data.regionName.toLowerCase().includes(regionFilter)) ||
+                                    (cityFilter && !data.city.toLowerCase().includes(cityFilter)) ||
+                                    (methodFilter && !data.method.toLowerCase().includes(methodFilter)) ||
+                                    (sourceFilter && !data.source.toLowerCase().includes(sourceFilter)) ||
+                                    (ipFilter && !data.ip.toLowerCase().includes(ipFilter)) ||
+                                    (urlFilter && !data.url.toLowerCase().includes(urlFilter)) ||
+                                    (flagFilter && (!data.flag || !data.flag.toLowerCase().includes(flagFilter))) ||
+                                    (computernameFilter && (!data.computername || !data.computername.toLowerCase().includes(computernameFilter)));
+
+                                if (!isFilteredOut) {
+                                    count++;
+                                    const newRow = createTableRow(doc, count);
+                                    tableBody.insertAdjacentHTML("beforeend", newRow);
+                                }
+                            });
+                        })
+                        .catch((error) => {
+                            console.error("Error updating table:", error);
+                            showError("Error updating table: " + error.message);
+                        });
+                }
+
+            } catch (err) {
+                console.error("Firebase initialization error:", err);
+                showError("Error initializing Firebase: " + err.message);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Logs Viewer Application"/>
+  <title>Logs Viewer_v1.4.5</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #f4f4f9; color:#222; }
+    .container { max-width: 100%; margin: 0 auto; }
+    h2 { text-align: center; margin: 8px 0 10px; }
+
+    .bar { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom: 8px; }
+    .left, .right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+    .btn {
+      padding: 10px 14px; border: none; border-radius: 10px; cursor: pointer;
+      color: white; background: #4caf50; font-weight: 800;
+      transition: transform .08s ease, opacity .2s ease;
+      user-select: none;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn[disabled] { opacity: .45; cursor: not-allowed; }
+    .btn.danger { background:#f44336; }
+    .btn.secondary { background:#3b82f6; }
+    .btn.neutral { background:#111827; }
+
+    .pill { padding: 6px 10px; border-radius: 999px; background:#fff; border:1px solid #ddd; font-size:13px; font-weight:800; }
+    select { padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background:#fff; font-weight:800; }
+
+    .error-message { display:none; color:#b00020; text-align:center; margin:10px 0; font-weight:900; }
+
+    /* Bigger viewport */
+    .table-container {
+      overflow:auto;
+      height: 90vh;
+      width: 100%;
+      background:#fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+    }
+
+    table { width:100%; min-width: 2100px; border-collapse: collapse; table-layout: fixed; }
+    th, td {
+      padding: 10px 12px; border:1px solid #e0e0e0; text-align:left;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      height: 42px; box-sizing:border-box;
+    }
+    th { background:#4caf50; color:white; position: sticky; top:0; z-index:2; }
+    thead tr.filters th { background:#3f9f45; top:42px; z-index:1; }
+    tr:nth-child(even) td { background:#fafafe; }
+    tr:hover td { background:#eef2ff; }
+
+    .filter-input {
+      padding: 8px; border: 1px solid #ddd; border-radius: 10px;
+      width: 120px; font-size:14px; font-weight:700;
+    }
+
+    /* New logs banner */
+    #newBanner {
+      display:none;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      margin: 6px 0 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #111827;
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    /* Funny loader (NO avatar) */
+    .loader-overlay {
+      position: fixed; inset: 0;
+      background: rgba(244,244,249,0.92);
+      display:none; align-items:center; justify-content:center;
+      z-index:9999; backdrop-filter: blur(2px);
+    }
+    .loader-card {
+      width: min(460px, 92vw);
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.18);
+      padding: 18px 18px 14px;
+      border: 1px solid #e9e9f4;
+      position: relative;
+      overflow: hidden;
+    }
+    .sparkles {
+      position:absolute; inset:-40px;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(76,175,80,.22), transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(59,130,246,.18), transparent 50%),
+        radial-gradient(circle at 30% 90%, rgba(244,67,54,.18), transparent 50%);
+      animation: floaty 3.2s ease-in-out infinite;
+      pointer-events:none;
+    }
+    @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px)} }
+    .loader-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; position:relative; z-index:1; }
+    .loader-title strong { font-size:16px; }
+    .loader-title .tiny { font-size:12px; opacity:.75; font-weight:800; }
+    .wheel-wrap { display:grid; place-items:center; margin:12px 0 10px; position:relative; z-index:1; }
+    .wheel {
+      width:120px; height:120px; border-radius:50%;
+      border:10px dashed #4caf50;
+      animation: spin 0.65s linear infinite;
+      box-shadow: inset 0 0 0 8px rgba(76,175,80,0.08);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress { height:10px; border-radius:999px; background:#eef2ff; overflow:hidden; border:1px solid #e0e7ff; position:relative; z-index:1; }
+    .progress > div {
+      height:100%; width:40%;
+      background: linear-gradient(90deg, #4caf50, #3b82f6, #f44336, #4caf50);
+      background-size:200% 100%;
+      animation: slide 0.9s ease-in-out infinite;
+      border-radius:999px;
+    }
+    @keyframes slide {
+      0% { transform: translateX(-70%); background-position: 0% 0%; }
+      100% { transform: translateX(180%); background-position: 100% 0%; }
+    }
+    .loader-quip { margin-top:10px; font-size:13px; opacity:.88; position:relative; z-index:1; line-height:1.45; font-weight:800; }
+    .quip-emoji { display:inline-block; animation:bop 0.6s ease-in-out infinite alternate; margin-right:6px; }
+    @keyframes bop { from{transform:translateY(0)} to{transform:translateY(-3px)} }
+
+    @media (max-width: 600px) {
+      .table-container { height: 86vh; }
+      table { min-width: 1750px; }
+      .filter-input { width: 95px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="loader-overlay" id="loader">
+    <div class="loader-card">
+      <div class="sparkles"></div>
+      <div class="progress"><div></div></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>Logs Viewer_v1.4.5</h2>
+    <div id="errorMessage" class="error-message"></div>
+
+    <div id="newBanner" title="Click to refresh results"></div>
+
+    <div class="bar">
+      <div class="left">
+        <button id="firstBtn" class="btn neutral" type="button">⏮ First</button>
+        <button id="prevBtn" class="btn secondary" type="button" disabled>⬅ Prev</button>
+        <button id="nextBtn" class="btn secondary" type="button" disabled>Next ➡</button>
+        <button id="lastBtn" class="btn neutral" type="button">Last ⏭</button>
+
+        <span class="pill" id="pagePill">Page 1</span>
+        <span class="pill" id="countPill">Rows: 0</span>
+
+        <label class="pill">
+          Page size:
+          <select id="pageSize">
+            <option value="100">100</option>
+            <option value="200" selected>200</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="table-container" id="tableWrap" style="display:none;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:60px;">#</th>
+            <th style="width:190px;">Timestamp</th>
+            <th style="width:140px;">Country</th>
+            <th style="width:160px;">Region</th>
+            <th style="width:150px;">City</th>
+            <th style="width:140px;">Method</th>
+            <th style="width:120px;">Source</th>
+            <th style="width:150px;">IP</th>
+            <th style="width:360px;">Request URL</th>
+            <th style="width:80px;">Flag</th>
+            <th style="width:360px;">PC name / Username</th>
+          </tr>
+
+          <tr class="filters">
+            <th>*</th>
+            <th><input class="filter-input" id="f-timestamp" placeholder="Timestamp"></th>
+            <th><input class="filter-input" id="f-country" placeholder="Country"></th>
+            <th><input class="filter-input" id="f-region" placeholder="Region"></th>
+            <th><input class="filter-input" id="f-city" placeholder="City"></th>
+            <th><input class="filter-input" id="f-method" placeholder="Method"></th>
+            <th><input class="filter-input" id="f-source" placeholder="Source"></th>
+            <th><input class="filter-input" id="f-ip" placeholder="IP"></th>
+            <th><input class="filter-input" id="f-url" placeholder="URL"></th>
+            <th><input class="filter-input" id="f-flag" placeholder="Flag"></th>
+            <th><input class="filter-input" id="f-computername" placeholder="PC / User"></th>
+          </tr>
+        </thead>
+
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const loader = document.getElementById("loader");
+      const loaderTiny = document.getElementById("loaderTiny");
+      const loaderQuip = document.getElementById("loaderQuip");
+
+      const errorDiv = document.getElementById("errorMessage");
+      const tableWrap = document.getElementById("tableWrap");
+      const tbody = document.getElementById("tbody");
+
+      const newBanner = document.getElementById("newBanner");
+
+      const firstBtn = document.getElementById("firstBtn");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const lastBtn = document.getElementById("lastBtn");
+      const pageSizeSel = document.getElementById("pageSize");
+      const pagePill = document.getElementById("pagePill");
+      const countPill = document.getElementById("countPill");
+
+      const filters = {
+        timestamp: document.getElementById("f-timestamp"),
+        country: document.getElementById("f-country"),
+        regionName: document.getElementById("f-region"),
+        city: document.getElementById("f-city"),
+        method: document.getElementById("f-method"),
+        source: document.getElementById("f-source"),
+        ip: document.getElementById("f-ip"),
+        url: document.getElementById("f-url"),
+        flag: document.getElementById("f-flag"),
+        computername: document.getElementById("f-computername"),
+      };
+
+      let funnyTimer = null;
+      function showLoader(on) {
+        if (on) {
+          loader.style.display = "flex";
+          funnyTimer = setInterval(850);
+        } else {
+          loader.style.display = "none";
+          if (funnyTimer) clearInterval(funnyTimer);
+          funnyTimer = null;
+        }
+      }
+
+      function showError(msg) { errorDiv.textContent = msg; errorDiv.style.display = "block"; }
+      function hideError() { errorDiv.style.display = "none"; }
+
+      // ======= state =======
+      let hideMineList = true;
+      let pageNumber = 1;
+
+      // cursors returned by server for paging
+      let prevCursor = null;
+      let nextCursor = null;
+
+      // keep last successful response so we can avoid blank-table on “no more pages”
+      let lastGood = { items: [], prevCursor: null, nextCursor: null, pageNumber: 1 };
+
+      let pageItems = [];
+
+      // realtime banner
+      let newCount = 0;
+
+      function getFilterObj() {
+        // send raw text; backend lowercases
+        return {
+          timestamp: filters.timestamp.value.trim(),
+          country: filters.country.value.trim(),
+          regionName: filters.regionName.value.trim(),
+          city: filters.city.value.trim(),
+          method: filters.method.value.trim(),
+          source: filters.source.value.trim(),
+          ip: filters.ip.value.trim(),
+          url: filters.url.value.trim(),
+          flag: filters.flag.value.trim(),
+          computername: filters.computername.value.trim(),
+        };
+      }
+
+      function filtersAreEmpty() {
+        return Object.values(filters).every(el => !el.value.trim());
+      }
+
+      function hideNewBanner() {
+        newBanner.style.display = "none";
+        newCount = 0;
+      }
+
+      function showNewBanner() {
+        newBanner.style.display = "block";
+        newBanner.textContent = `🆕 New logs available (${newCount}) — click to refresh`;
+      }
+
+      newBanner.addEventListener("click", async () => {
+        hideNewBanner();
+        pageNumber = 1;
+        await fetchPage("first", null, 1);
+      });
+
+      function renderTable() {
+        let html = "";
+        for (let i = 0; i < pageItems.length; i++) {
+          const r = pageItems[i];
+          html += `
+            <tr>
+              <td>${pageItems.length - i}</td>
+              <td title="${r.timestamp || ""}">${r.timestamp || "N/A"}</td>
+              <td title="${r.country || ""}">${r.country || "N/A"}</td>
+              <td title="${r.regionName || ""}">${r.regionName || "N/A"}</td>
+              <td title="${r.city || ""}">${r.city || "N/A"}</td>
+              <td title="${r.method || ""}">${r.method || "N/A"}</td>
+              <td title="${r.source || ""}">${r.source || "N/A"}</td>
+              <td title="${r.ip || ""}">${r.ip || "N/A"}</td>
+              <td title="${r.url || ""}">${r.url || "N/A"}</td>
+              <td title="${r.flag || ""}">${r.flag || "N/A"}</td>
+              <td title="${r.computername || ""}">${r.computername || "N/A"}</td>
+            </tr>
+          `;
+        }
+        tbody.innerHTML = html;
+
+        pagePill.textContent = `Page ${pageNumber}`;
+        countPill.textContent = `Rows: ${pageItems.length}`;
+
+        prevBtn.disabled = !prevCursor;
+        nextBtn.disabled = !nextCursor;
+      }
+
+      function buildUrl(dir, cursorParam) {
+        const limit = parseInt(pageSizeSel.value, 10) || 200;
+        const url = new URL("/api/requests", window.location.origin);
+
+        url.searchParams.set("limit", String(limit));
+        url.searchParams.set("dir", dir);
+        url.searchParams.set("hideMineList", hideMineList ? "1" : "0");
+        if (cursorParam) url.searchParams.set("cursor", cursorParam);
+
+        const f = getFilterObj();
+        for (const [k, v] of Object.entries(f)) {
+          if (v) url.searchParams.set(k, v);
+        }
+        return url.toString();
+      }
+
+      async function fetchPage(dir, cursorParam = null, pageOverride = null) {
+        hideError();
+        showLoader(true);
+
+        try {
+          const res = await fetch(buildUrl(dir, cursorParam), { headers: { "Accept": "application/json" } });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+
+          const items = data.items || [];
+          const pCur = data.prevCursor || null;
+          const nCur = data.nextCursor || null;
+
+          // If user clicks next/prev but there are no more results, don’t blank the table.
+          if ((dir === "next" || dir === "prev") && items.length === 0) {
+            // disable that direction
+            if (dir === "next") nextCursor = null;
+            if (dir === "prev") prevCursor = null;
+            renderTable();
+            return;
+          }
+
+          pageItems = items;
+          prevCursor = pCur;
+          nextCursor = nCur;
+
+          if (pageOverride !== null) pageNumber = pageOverride;
+
+          tableWrap.style.display = "block";
+          renderTable();
+
+          lastGood = { items: pageItems, prevCursor, nextCursor, pageNumber };
+        } catch (e) {
+          console.error(e);
+          showError("Failed to load logs: " + (e?.message || e));
+
+          // fallback to last good view
+          pageItems = lastGood.items;
+          prevCursor = lastGood.prevCursor;
+          nextCursor = lastGood.nextCursor;
+          pageNumber = lastGood.pageNumber;
+          renderTable();
+        } finally {
+          showLoader(false);
+        }
+      }
+
+      // ======= controls =======
+      firstBtn.addEventListener("click", async () => {
+        hideNewBanner();
+        pageNumber = 1;
+        await fetchPage("first", null, 1);
+      });
+
+      lastBtn.addEventListener("click", async () => {
+        hideNewBanner();
+        pageNumber = "LAST";
+        await fetchPage("last", null, "LAST");
+      });
+
+      nextBtn.addEventListener("click", async () => {
+        if (!nextCursor) return;
+        hideNewBanner();
+        if (pageNumber !== "LAST") pageNumber += 1;
+        await fetchPage("next", nextCursor, pageNumber);
+      });
+
+      prevBtn.addEventListener("click", async () => {
+        if (!prevCursor) return;
+        hideNewBanner();
+        if (pageNumber !== "LAST") pageNumber = Math.max(1, pageNumber - 1);
+        await fetchPage("prev", prevCursor, pageNumber);
+      });
+
+      pageSizeSel.addEventListener("change", async () => {
+        hideNewBanner();
+        pageNumber = 1;
+        await fetchPage("first", null, 1);
+      });
+
+      // Debounced server-side filters (across ALL pages)
+      let debounce = null;
+      Object.values(filters).forEach(el => {
+        el.addEventListener("input", () => {
+          clearTimeout(debounce);
+          debounce = setTimeout(async () => {
+            hideNewBanner();
+            pageNumber = 1;
+            await fetchPage("first", null, 1);
+          }, 250);
+        });
+      });
+
+      // ======= realtime via SSE =======
+      try {
+        const es = new EventSource("/api/stream");
+
+        es.addEventListener("new_log", async (ev) => {
+          const msg = JSON.parse(ev.data || "{}");
+
+          // If on first page and no filters, auto-refresh silently (fast)
+          const onFirst = (pageNumber === 1 || pageNumber === "1");
+          if (onFirst && filtersAreEmpty() && hideMineList === true) {
+            await fetchPage("first", null, 1);
+            return;
+          }
+
+          // Otherwise show banner
+          newCount++;
+          showNewBanner();
+        });
+
+        // optional: handle disconnect
+        es.addEventListener("error", () => {
+          // If needed you can fallback to polling here.
+        });
+      } catch (e) {
+        console.warn("SSE not available:", e);
+      }
+
+      // ======= init =======
+      fetchPage("first", null, 1);
+    });
+  </script>
+</body>
+</html>
